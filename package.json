@@ -1,0 +1,23 @@
+{
+  "name": "microservicio",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node src/app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ArcangelGC/microservicio.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ArcangelGC/microservicio/issues"
+  },
+  "homepage": "https://github.com/ArcangelGC/microservicio#readme",
+  "description": "",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
