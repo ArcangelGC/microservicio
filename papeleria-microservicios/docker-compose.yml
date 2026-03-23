@@ -1,0 +1,218 @@
+version: "3.9"
+
+services:
+
+  # ─────────────────────────────────────────
+  # BASES DE DATOS MYSQL (una por servicio)
+  # ─────────────────────────────────────────
+
+  db-clientes:
+    image: mysql:8.0
+    container_name: db-clientes
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: bd_clientes
+    ports:
+      - "3307:3306"
+    volumes:
+      - data-clientes:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db-productos:
+    image: mysql:8.0
+    container_name: db-productos
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: bd_productos
+    ports:
+      - "3308:3306"
+    volumes:
+      - data-productos:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db-inventario:
+    image: mysql:8.0
+    container_name: db-inventario
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: bd_inventario
+    ports:
+      - "3309:3306"
+    volumes:
+      - data-inventario:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db-pedidos:
+    image: mysql:8.0
+    container_name: db-pedidos
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: bd_pedidos
+    ports:
+      - "3310:3306"
+    volumes:
+      - data-pedidos:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db-proveedores:
+    image: mysql:8.0
+    container_name: db-proveedores
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: bd_proveedores
+    ports:
+      - "3311:3306"
+    volumes:
+      - data-proveedores:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db-ventas:
+    image: mysql:8.0
+    container_name: db-ventas
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: bd_ventas
+    ports:
+      - "3312:3306"
+    volumes:
+      - data-ventas:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # MICROSERVICIOS
+  # ─────────────────────────────────────────
+
+  servicio-clientes:
+    build: ./servicio-clientes
+    container_name: servicio-clientes
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db-clientes:3306/bd_clientes?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    depends_on:
+      db-clientes:
+        condition: service_healthy
+
+  servicio-productos:
+    build: ./servicio-productos
+    container_name: servicio-productos
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db-productos:3306/bd_productos?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    depends_on:
+      db-productos:
+        condition: service_healthy
+
+  servicio-inventario:
+    build: ./servicio-inventario
+    container_name: servicio-inventario
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db-inventario:3306/bd_inventario?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      APP_PRODUCTOS_URL: http://servicio-productos:8082
+    depends_on:
+      db-inventario:
+        condition: service_healthy
+
+  servicio-pedidos:
+    build: ./servicio-pedidos
+    container_name: servicio-pedidos
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db-pedidos:3306/bd_pedidos?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      APP_INVENTARIO_URL: http://servicio-inventario:8083
+      APP_CLIENTES_URL: http://servicio-clientes:8081
+    depends_on:
+      db-pedidos:
+        condition: service_healthy
+      servicio-inventario:
+        condition: service_started
+      servicio-clientes:
+        condition: service_started
+
+  servicio-proveedores:
+    build: ./servicio-proveedores
+    container_name: servicio-proveedores
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db-proveedores:3306/bd_proveedores?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    depends_on:
+      db-proveedores:
+        condition: service_healthy
+
+  servicio-ventas:
+    build: ./servicio-ventas
+    container_name: servicio-ventas
+    ports:
+      - "8086:8086"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db-ventas:3306/bd_ventas?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      APP_PEDIDOS_URL: http://servicio-pedidos:8084
+      APP_CLIENTES_URL: http://servicio-clientes:8081
+    depends_on:
+      db-ventas:
+        condition: service_healthy
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - servicio-clientes
+      - servicio-productos
+      - servicio-inventario
+      - servicio-pedidos
+      - servicio-proveedores
+      - servicio-ventas
+
+# ─────────────────────────────────────────
+# VOLÚMENES PERSISTENTES
+# ─────────────────────────────────────────
+volumes:
+  data-clientes:
+  data-productos:
+  data-inventario:
+  data-pedidos:
+  data-proveedores:
+  data-ventas:
