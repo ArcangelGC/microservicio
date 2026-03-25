@@ -7,13 +7,6 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="servicio-pedidos" />
-        <module name="servicio-ventas" />
-        <module name="api-gateway" />
-        <module name="servicio-productos" />
-        <module name="servicio-inventario" />
-        <module name="servicio-proveedores" />
-        <module name="servicio-clientes" />
       </profile>
     </annotationProcessing>
   </component>
