@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS clientes (
     fecha_registro  DATE,
     activo          TINYINT(1) NOT NULL DEFAULT 1
 );
+--tabla de direcciones (prueba)
 
 CREATE TABLE IF NOT EXISTS direcciones (
     id             BIGINT AUTO_INCREMENT PRIMARY KEY,
