@@ -1,303 +1,439 @@
 # Papelería Microservicios
-Sistema completo de microservicios para una papelería desarrollado con **Java 17 + Spring Boot 3 + MySQL**.
 
----
+Proyecto de microservicios para la administración de una papelería. Está desarrollado con **Java 17**, **Spring Boot 3.2.3**, **Spring Cloud 2023.0.0**, **Maven**, **MySQL 8** y **Docker Compose**.
 
-## Arquitectura
+El sistema está dividido en servicios independientes, cada uno con su propia base de datos MySQL. El acceso centralizado a las APIs se realiza mediante un **API Gateway**.
 
+## Arquitectura general
+
+```text
+Cliente / Postman / Frontend
+          |
+          v
+    API Gateway
+          |
+          +--> servicio-clientes      -> bd_clientes
+          +--> servicio-productos     -> bd_productos
+          +--> servicio-inventario    -> bd_inventario
+          +--> servicio-pedidos       -> bd_pedidos
+          +--> servicio-proveedores   -> bd_proveedores
+          +--> servicio-ventas        -> bd_ventas
 ```
-                        ┌─────────────────┐
-        Postman ──────► │   API Gateway   │  :8080
-                        │   (enrutador)   │
-                        └────────┬────────┘
-               ┌─────────────────┼─────────────────┐
-               │         ┌───────┤       ┌──────────┤
-               ▼         ▼       ▼       ▼          ▼
-          Clientes  Productos Inventario Pedidos  Proveedores  Ventas
-           :8081     :8082     :8083     :8084     :8085       :8086
-             │         │         │         │         │           │
-           bd_cli   bd_prod   bd_inv    bd_ped    bd_prov     bd_ven
+
+## Servicios
+
+| Servicio | Puerto | Base de datos | Responsabilidad |
+| --- | ---: | --- | --- |
+| api-gateway | 8090 en `application.yml` | No aplica | Enrutamiento hacia los microservicios |
+| servicio-clientes | 8081 | bd_clientes | Clientes y direcciones |
+| servicio-productos | 8082 | bd_productos | Productos y categorías |
+| servicio-inventario | 8083 | bd_inventario | Existencias y movimientos de stock |
+| servicio-pedidos | 8084 | bd_pedidos | Pedidos y detalle de pedidos |
+| servicio-proveedores | 8085 | bd_proveedores | Proveedores, compras y detalle de compras |
+| servicio-ventas | 8086 | bd_ventas | Ventas y facturas |
+
+> Nota: en `docker-compose.yml` el gateway está publicado como `8080:8080`, pero en `api-gateway/src/main/resources/application.yml` el puerto configurado es `8090`. Para Docker, estos valores deberían alinearse antes de levantar el gateway.
+
+## Estructura del proyecto
+
+```text
+papeleria-microservicios/
+├── README.md
+├── .gitignore
+├── database.sql
+├── docker-compose.yml
+├── api-gateway/
+│   ├── Dockerfile
+│   ├── pom.xml
+│   └── src/
+│       └── main/
+│           ├── java/
+│           │   └── com/papeleria/gateway/
+│           │       └── ApiGatewayApplication.java
+│           └── resources/
+│               └── application.yml
+├── servicio-clientes/
+│   ├── Dockerfile
+│   ├── pom.xml
+│   └── src/
+│       ├── main/
+│       │   ├── java/
+│       │   │   └── com/papeleria/clientes/
+│       │   │       ├── ClientesApplication.java
+│       │   │       ├── config/
+│       │   │       │   └── CorsConfig.java
+│       │   │       ├── controller/
+│       │   │       │   └── ClienteController.java
+│       │   │       ├── dto/
+│       │   │       │   ├── ClienteDTO.java
+│       │   │       │   └── DireccionDTO.java
+│       │   │       ├── exception/
+│       │   │       │   ├── GlobalExceptionHandler.java
+│       │   │       │   └── ResourceNotFoundException.java
+│       │   │       ├── model/
+│       │   │       │   ├── Cliente.java
+│       │   │       │   └── Direccion.java
+│       │   │       ├── repository/
+│       │   │       │   ├── ClienteRepository.java
+│       │   │       │   └── DireccionRepository.java
+│       │   │       └── service/
+│       │   │           └── ClienteService.java
+│       │   └── resources/
+│       │       └── application.properties
+│       └── test/
+│           └── java/com/papeleria/clientes/service/
+│               ├── ClienteServiceTest.java
+│               └── DireccionTest.java
+├── servicio-productos/
+│   ├── Dockerfile
+│   ├── pom.xml
+│   └── src/
+│       ├── main/
+│       │   ├── java/
+│       │   │   └── com/papeleria/productos/
+│       │   │       ├── ProductosApplication.java
+│       │   │       ├── config/
+│       │   │       │   └── CorsConfig.java
+│       │   │       ├── controller/
+│       │   │       │   └── ProductoController.java
+│       │   │       ├── dto/
+│       │   │       │   ├── CategoriaDTO.java
+│       │   │       │   └── ProductoDTO.java
+│       │   │       ├── exception/
+│       │   │       │   ├── GlobalExceptionHandler.java
+│       │   │       │   └── ResourceNotFoundException.java
+│       │   │       ├── model/
+│       │   │       │   ├── Categoria.java
+│       │   │       │   └── Producto.java
+│       │   │       ├── repository/
+│       │   │       │   ├── CategoriaRepository.java
+│       │   │       │   └── ProductoRepository.java
+│       │   │       └── service/
+│       │   │           └── ProductoService.java
+│       │   └── resources/
+│       │       └── application.properties
+│       └── test/
+│           └── java/com/papeleria/productos/service/
+│               ├── CategoriaTest.java
+│               └── ProductoServiceTest.java
+├── servicio-inventario/
+│   ├── Dockerfile
+│   ├── pom.xml
+│   └── src/
+│       └── main/
+│           ├── java/
+│           │   └── com/papeleria/inventario/
+│           │       ├── InventarioApplication.java
+│           │       ├── config/
+│           │       │   └── CorsConfig.java
+│           │       ├── controller/
+│           │       │   └── InventarioController.java
+│           │       ├── dto/
+│           │       │   ├── InventarioDTO.java
+│           │       │   └── MovimientoDTO.java
+│           │       ├── exception/
+│           │       │   ├── GlobalExceptionHandler.java
+│           │       │   └── ResourceNotFoundException.java
+│           │       ├── model/
+│           │       │   ├── Inventario.java
+│           │       │   └── MovimientoStock.java
+│           │       ├── repository/
+│           │       │   ├── InventarioRepository.java
+│           │       │   └── MovimientoRepository.java
+│           │       └── service/
+│           │           └── InventarioService.java
+│           └── resources/
+│               └── application.properties
+├── servicio-pedidos/
+│   ├── Dockerfile
+│   ├── pom.xml
+│   └── src/
+│       └── main/
+│           ├── java/
+│           │   └── com/papeleria/pedidos/
+│           │       ├── PedidosApplication.java
+│           │       ├── client/
+│           │       │   └── InventarioClient.java
+│           │       ├── config/
+│           │       │   └── CorsConfig.java
+│           │       ├── controller/
+│           │       │   └── PedidoController.java
+│           │       ├── dto/
+│           │       │   ├── DetallePedidoDTO.java
+│           │       │   └── PedidoDTO.java
+│           │       ├── exception/
+│           │       │   ├── GlobalExceptionHandler.java
+│           │       │   └── ResourceNotFoundException.java
+│           │       ├── model/
+│           │       │   ├── DetallePedido.java
+│           │       │   └── Pedido.java
+│           │       ├── repository/
+│           │       │   ├── DetallePedidoRepository.java
+│           │       │   └── PedidoRepository.java
+│           │       └── service/
+│           │           └── PedidoService.java
+│           └── resources/
+│               └── application.properties
+├── servicio-proveedores/
+│   ├── Dockerfile
+│   ├── pom.xml
+│   └── src/
+│       └── main/
+│           ├── java/
+│           │   └── com/papeleria/proveedores/
+│           │       ├── ProveedoresApplication.java
+│           │       ├── config/
+│           │       │   └── CorsConfig.java
+│           │       ├── controller/
+│           │       │   └── ProveedorController.java
+│           │       ├── dto/
+│           │       │   ├── CompraDTO.java
+│           │       │   ├── DetalleCompraDTO.java
+│           │       │   └── ProveedorDTO.java
+│           │       ├── exception/
+│           │       │   ├── GlobalExceptionHandler.java
+│           │       │   └── ResourceNotFoundException.java
+│           │       ├── model/
+│           │       │   ├── Compra.java
+│           │       │   ├── DetalleCompra.java
+│           │       │   └── Proveedor.java
+│           │       ├── repository/
+│           │       │   ├── CompraRepository.java
+│           │       │   └── ProveedorRepository.java
+│           │       └── service/
+│           │           └── ProveedorService.java
+│           └── resources/
+│               └── application.properties
+└── servicio-ventas/
+    ├── Dockerfile
+    ├── pom.xml
+    └── src/
+        └── main/
+            ├── java/
+            │   └── com/papeleria/ventas/
+            │       ├── VentasApplication.java
+            │       ├── config/
+            │       │   └── CorsConfig.java
+            │       ├── controller/
+            │       │   └── VentaController.java
+            │       ├── dto/
+            │       │   ├── FacturaDTO.java
+            │       │   └── VentaDTO.java
+            │       ├── exception/
+            │       │   ├── GlobalExceptionHandler.java
+            │       │   └── ResourceNotFoundException.java
+            │       ├── model/
+            │       │   ├── Factura.java
+            │       │   └── Venta.java
+            │       ├── repository/
+            │       │   ├── FacturaRepository.java
+            │       │   └── VentaRepository.java
+            │       └── service/
+            │           └── VentaService.java
+            └── resources/
+                └── application.properties
 ```
 
-| Servicio      | Puerto | Base de datos   | Tablas                         |
-|---------------|--------|-----------------|--------------------------------|
-| API Gateway   | 8080   | —               | Solo enruta peticiones         |
-| Clientes      | 8081   | bd_clientes     | clientes, direcciones          |
-| Productos     | 8082   | bd_productos    | productos, categorias          |
-| Inventario    | 8083   | bd_inventario   | inventario, movimientos_stock  |
-| Pedidos       | 8084   | bd_pedidos      | pedidos, detalle_pedidos       |
-| Proveedores   | 8085   | bd_proveedores  | proveedores, compras           |
-| Ventas        | 8086   | bd_ventas       | ventas, facturas               |
+Las carpetas `target/`, `.idea/`, `.git/` y `node_modules/` no forman parte de la estructura fuente del microservicio y no se incluyen como parte funcional del proyecto.
 
----
+## Patrón interno de cada microservicio
 
-## Opción A — Levantar con Docker (recomendado)
+Cada servicio de negocio sigue una estructura similar:
 
-### Requisitos
-- Docker Desktop instalado y corriendo
+| Carpeta | Función |
+| --- | --- |
+| `config/` | Configuración transversal, como CORS |
+| `controller/` | Endpoints REST expuestos por el servicio |
+| `dto/` | Objetos de transferencia de datos |
+| `exception/` | Manejo de errores y excepciones personalizadas |
+| `model/` | Entidades JPA persistidas en MySQL |
+| `repository/` | Interfaces Spring Data JPA |
+| `service/` | Lógica de negocio |
+| `resources/` | Configuración del servicio |
 
-### Pasos
+## Bases de datos
+
+El archivo `database.sql` crea las bases y tablas necesarias para ejecución local sin Docker.
+
+| Base de datos | Tablas principales |
+| --- | --- |
+| `bd_clientes` | `clientes`, `direcciones` |
+| `bd_productos` | `productos`, `categorias` |
+| `bd_inventario` | `inventario`, `movimientos_stock` |
+| `bd_pedidos` | `pedidos`, `detalle_pedidos` |
+| `bd_proveedores` | `proveedores`, `compras`, `detalle_compras` |
+| `bd_ventas` | `ventas`, `facturas` |
+
+## Requisitos
+
+- Java 17
+- Maven
+- Docker Desktop, si se ejecuta con contenedores
+- MySQL 8, si se ejecuta localmente sin Docker
+- Postman, Insomnia o cliente HTTP equivalente para probar APIs
+
+## Ejecución con Docker Compose
+
+Desde la carpeta raíz del proyecto:
+
 ```bash
-# 1. Entrar a la carpeta del proyecto
 cd papeleria-microservicios
-
-# 2. Levantar todo con un solo comando
 docker-compose up --build
-
-# 3. Esperar a que todos los servicios inicien (~2-3 minutos)
-# 4. Verificar en Postman: GET http://localhost:8080/api/clientes/health
 ```
 
-Para detener todo:
+Para detener los contenedores:
+
 ```bash
 docker-compose down
 ```
 
----
+Para detener y eliminar volúmenes de datos:
 
-## Opción B — Ejecutar en IntelliJ (sin Docker)
-
-### Requisitos
-- Java 17
-- MySQL corriendo en localhost:3306
-- IntelliJ IDEA
-
-### Paso 1 — Crear las bases de datos
-Abre MySQL Workbench y ejecuta el archivo `database.sql` completo.
-
-### Paso 2 — Abrir los proyectos en IntelliJ
-Cada servicio es un proyecto Maven independiente. Tienes dos opciones:
-
-**Opción rápida — abrir como módulos:**
-1. `File → New → Project from Existing Sources`
-2. Selecciona la carpeta raíz `papeleria-microservicios`
-3. IntelliJ detectará los 7 `pom.xml`
-
-**Opción individual — abrir uno por uno:**
-1. `File → Open` → selecciona la carpeta de cada servicio
-2. Confirma "Load Maven Project"
-
-### Paso 3 — Configurar contraseña MySQL
-En cada servicio edita `src/main/resources/application.properties`:
-```properties
-spring.datasource.password=TU_PASSWORD_AQUI
+```bash
+docker-compose down -v
 ```
 
-### Paso 4 — Orden de arranque
-Es importante arrancar en este orden para que las dependencias funcionen:
+## Ejecución local sin Docker
 
-```
-1. servicio-clientes    (no depende de nadie)
-2. servicio-productos   (no depende de nadie)
-3. servicio-inventario  (no depende de nadie)
-4. servicio-proveedores (no depende de nadie)
-5. servicio-pedidos     (llama a inventario)
-6. servicio-ventas      (llama a pedidos)
-7. api-gateway          (enruta a todos)
+1. Crear las bases de datos ejecutando `database.sql` en MySQL.
+2. Verificar que MySQL esté disponible en `127.0.0.1:3306`.
+3. Configurar usuario y contraseña en cada archivo `application.properties`.
+4. Ejecutar cada servicio Maven desde su carpeta:
+
+```bash
+mvn spring-boot:run
 ```
 
-En IntelliJ: clic derecho sobre `*Application.java` → **Run**.
+Orden recomendado de arranque:
 
----
-
-## Endpoints completos — Postman
-
-### URL BASE (con Gateway): `http://localhost:8080`
-### URL DIRECTA (sin Gateway): `http://localhost:808X`
-
----
-
-### CLIENTES  `/api/clientes`
-
-| Método | URL                          | Descripción              |
-|--------|------------------------------|--------------------------|
-| GET    | /api/clientes                | Listar todos             |
-| GET    | /api/clientes/activos        | Solo activos             |
-| GET    | /api/clientes/{id}           | Buscar por ID            |
-| GET    | /api/clientes/buscar?q=ana   | Buscar por nombre        |
-| POST   | /api/clientes                | Crear cliente            |
-| PUT    | /api/clientes/{id}           | Actualizar               |
-| DELETE | /api/clientes/{id}           | Eliminar                 |
-| POST   | /api/clientes/direcciones    | Agregar dirección        |
-| GET    | /api/clientes/{id}/direcciones | Ver direcciones        |
-
-**Ejemplo POST /api/clientes:**
-```json
-{
-  "nombre": "Pedro",
-  "apellido": "Ramírez",
-  "email": "pedro.ramirez@email.com",
-  "telefono": "5551234567"
-}
+```text
+1. servicio-clientes
+2. servicio-productos
+3. servicio-inventario
+4. servicio-proveedores
+5. servicio-pedidos
+6. servicio-ventas
+7. api-gateway
 ```
 
----
+## Endpoints principales
 
-### PRODUCTOS  `/api/productos`
+### Clientes
 
-| Método | URL                               | Descripción          |
-|--------|-----------------------------------|----------------------|
-| GET    | /api/productos                    | Listar activos       |
-| GET    | /api/productos/{id}               | Buscar por ID        |
-| GET    | /api/productos/buscar?nombre=lapiz| Buscar por nombre    |
-| GET    | /api/productos/categoria/{catId}  | Filtrar categoría    |
-| GET    | /api/productos/categorias         | Listar categorías    |
-| POST   | /api/productos/categorias         | Crear categoría      |
-| POST   | /api/productos                    | Crear producto       |
-| PUT    | /api/productos/{id}               | Actualizar           |
-| DELETE | /api/productos/{id}               | Desactivar           |
+Base: `/api/clientes`
 
-**Ejemplo POST /api/productos:**
-```json
-{
-  "nombre": "Crayones 12 colores",
-  "descripcion": "Caja de crayones 12 colores jumbo",
-  "precio": 35.00,
-  "codigoBarras": "CRA001",
-  "unidadMedida": "caja",
-  "categoriaId": 4
-}
-```
+| Método | Ruta | Descripción |
+| --- | --- | --- |
+| GET | `/api/clientes` | Lista clientes |
+| GET | `/api/clientes/activos` | Lista clientes activos |
+| GET | `/api/clientes/{id}` | Busca un cliente por ID |
+| GET | `/api/clientes/buscar?q=ana` | Busca clientes por nombre |
+| POST | `/api/clientes` | Crea un cliente |
+| PUT | `/api/clientes/{id}` | Actualiza un cliente |
+| DELETE | `/api/clientes/{id}` | Elimina o desactiva un cliente |
+| POST | `/api/clientes/direcciones` | Agrega una dirección |
+| GET | `/api/clientes/{id}/direcciones` | Lista direcciones del cliente |
 
----
+### Productos
 
-### INVENTARIO  `/api/inventario`
+Base: `/api/productos`
 
-| Método | URL                              | Descripción             |
-|--------|----------------------------------|-------------------------|
-| GET    | /api/inventario                  | Listar todo             |
-| GET    | /api/inventario/{id}             | Por ID                  |
-| GET    | /api/inventario/producto/{pid}   | Por producto            |
-| GET    | /api/inventario/stock-bajo       | Alertas stock mínimo    |
-| POST   | /api/inventario                  | Registrar producto      |
-| POST   | /api/inventario/movimiento       | Entrada / Salida        |
-| GET    | /api/inventario/{id}/historial   | Historial movimientos   |
+| Método | Ruta | Descripción |
+| --- | --- | --- |
+| GET | `/api/productos` | Lista productos activos |
+| GET | `/api/productos/{id}` | Busca un producto por ID |
+| GET | `/api/productos/buscar?nombre=lapiz` | Busca productos por nombre |
+| GET | `/api/productos/categoria/{catId}` | Filtra por categoría |
+| GET | `/api/productos/categorias` | Lista categorías |
+| POST | `/api/productos/categorias` | Crea una categoría |
+| POST | `/api/productos` | Crea un producto |
+| PUT | `/api/productos/{id}` | Actualiza un producto |
+| DELETE | `/api/productos/{id}` | Desactiva un producto |
 
-**Ejemplo POST /api/inventario/movimiento (entrada de mercancía):**
-```json
-{
-  "inventarioId": 1,
-  "tipo": "ENTRADA",
-  "cantidad": 50,
-  "motivo": "Compra proveedor #3"
-}
-```
+### Inventario
 
----
+Base: `/api/inventario`
 
-### PEDIDOS  `/api/pedidos`
+| Método | Ruta | Descripción |
+| --- | --- | --- |
+| GET | `/api/inventario` | Lista inventario |
+| GET | `/api/inventario/{id}` | Busca inventario por ID |
+| GET | `/api/inventario/producto/{pid}` | Busca inventario por producto |
+| GET | `/api/inventario/stock-bajo` | Lista productos con stock bajo |
+| POST | `/api/inventario` | Registra inventario de producto |
+| POST | `/api/inventario/movimiento` | Registra entrada, salida o ajuste |
+| GET | `/api/inventario/{id}/historial` | Lista movimientos del inventario |
 
-| Método | URL                              | Descripción          |
-|--------|----------------------------------|----------------------|
-| GET    | /api/pedidos                     | Listar todos         |
-| GET    | /api/pedidos/{id}                | Por ID               |
-| GET    | /api/pedidos/cliente/{clienteId} | Por cliente          |
-| GET    | /api/pedidos/estado/PENDIENTE    | Por estado           |
-| POST   | /api/pedidos                     | Crear pedido         |
-| PATCH  | /api/pedidos/{id}/estado?estado=CONFIRMADO | Cambiar estado |
+### Pedidos
 
-**Ejemplo POST /api/pedidos:**
-```json
-{
-  "clienteId": 1,
-  "observaciones": "Entregar en oficina",
-  "detalles": [
-    { "productoId": 1, "cantidad": 5,  "precioUnitario": 5.50 },
-    { "productoId": 5, "cantidad": 2,  "precioUnitario": 25.00 }
-  ]
-}
-```
+Base: `/api/pedidos`
 
----
+| Método | Ruta | Descripción |
+| --- | --- | --- |
+| GET | `/api/pedidos` | Lista pedidos |
+| GET | `/api/pedidos/{id}` | Busca un pedido por ID |
+| GET | `/api/pedidos/cliente/{clienteId}` | Lista pedidos por cliente |
+| GET | `/api/pedidos/estado/PENDIENTE` | Lista pedidos por estado |
+| POST | `/api/pedidos` | Crea un pedido |
+| PATCH | `/api/pedidos/{id}/estado?estado=CONFIRMADO` | Cambia el estado del pedido |
 
-### PROVEEDORES  `/api/proveedores`
+### Proveedores
 
-| Método | URL                           | Descripción        |
-|--------|-------------------------------|--------------------|
-| GET    | /api/proveedores              | Listar activos     |
-| GET    | /api/proveedores/{id}         | Por ID             |
-| POST   | /api/proveedores              | Crear              |
-| PUT    | /api/proveedores/{id}         | Actualizar         |
-| DELETE | /api/proveedores/{id}         | Desactivar         |
-| POST   | /api/proveedores/compras      | Registrar compra   |
-| GET    | /api/proveedores/{id}/compras | Ver compras        |
+Base: `/api/proveedores`
 
-**Ejemplo POST /api/proveedores/compras:**
-```json
-{
-  "proveedorId": 1,
-  "numeroFactura": "FAC-2024-001",
-  "detalles": [
-    { "productoId": 1, "cantidad": 200, "precioUnitario": 3.50 },
-    { "productoId": 2, "cantidad": 150, "precioUnitario": 5.00 }
-  ]
-}
-```
+| Método | Ruta | Descripción |
+| --- | --- | --- |
+| GET | `/api/proveedores` | Lista proveedores activos |
+| GET | `/api/proveedores/{id}` | Busca proveedor por ID |
+| POST | `/api/proveedores` | Crea proveedor |
+| PUT | `/api/proveedores/{id}` | Actualiza proveedor |
+| DELETE | `/api/proveedores/{id}` | Desactiva proveedor |
+| POST | `/api/proveedores/compras` | Registra compra |
+| GET | `/api/proveedores/{id}/compras` | Lista compras del proveedor |
 
----
+### Ventas
 
-### VENTAS  `/api/ventas`
+Base: `/api/ventas`
 
-| Método | URL                             | Descripción        |
-|--------|---------------------------------|--------------------|
-| GET    | /api/ventas                     | Listar todas       |
-| GET    | /api/ventas/{id}                | Por ID             |
-| GET    | /api/ventas/cliente/{clienteId} | Por cliente        |
-| GET    | /api/ventas/estado/PAGADA       | Por estado         |
-| POST   | /api/ventas                     | Crear venta        |
-| PATCH  | /api/ventas/{id}/estado?estado=PAGADA | Cambiar estado |
-| POST   | /api/ventas/facturas            | Emitir factura     |
-| GET    | /api/ventas/{id}/facturas       | Ver facturas       |
-
-**Ejemplo POST /api/ventas:**
-```json
-{
-  "clienteId": 1,
-  "pedidoId": 1,
-  "subtotal": 77.50,
-  "metodoPago": "EFECTIVO"
-}
-```
-
-**Ejemplo POST /api/ventas/facturas (la venta debe estar PAGADA):**
-```json
-{
-  "ventaId": 1,
-  "rfcCliente": "GARA900101XXX",
-  "razonSocial": "Ana García"
-}
-```
-
----
+| Método | Ruta | Descripción |
+| --- | --- | --- |
+| GET | `/api/ventas` | Lista ventas |
+| GET | `/api/ventas/{id}` | Busca venta por ID |
+| GET | `/api/ventas/cliente/{clienteId}` | Lista ventas por cliente |
+| GET | `/api/ventas/estado/PAGADA` | Lista ventas por estado |
+| POST | `/api/ventas` | Crea venta |
+| PATCH | `/api/ventas/{id}/estado?estado=PAGADA` | Cambia estado de venta |
+| POST | `/api/ventas/facturas` | Emite factura |
+| GET | `/api/ventas/{id}/facturas` | Lista facturas de una venta |
 
 ## Health checks
 
-Verifica que todos los servicios están vivos:
-```
-GET http://localhost:8080/api/clientes/health
-GET http://localhost:8080/api/productos/health
-GET http://localhost:8080/api/inventario/health
-GET http://localhost:8080/api/pedidos/health
-GET http://localhost:8080/api/proveedores/health
-GET http://localhost:8080/api/ventas/health
-```
+Endpoints esperados para verificar disponibilidad:
 
-Respuesta esperada:
-```json
-{ "status": "UP", "servicio": "clientes" }
+```text
+GET /api/clientes/health
+GET /api/productos/health
+GET /api/inventario/health
+GET /api/pedidos/health
+GET /api/proveedores/health
+GET /api/ventas/health
 ```
-
----
 
 ## Comunicación entre servicios
 
-Cuando se crea un **pedido**, el servicio de pedidos llama automáticamente al servicio de inventario para descontar el stock de cada producto. Esta llamada se hace vía **Feign Client** (HTTP/REST).
+- `servicio-pedidos` usa `InventarioClient` para comunicarse con `servicio-inventario`.
+- Al crear pedidos, el sistema puede consultar inventario y registrar movimientos de salida.
+- `docker-compose.yml` define variables como `APP_INVENTARIO_URL`, `APP_CLIENTES_URL` y `APP_PEDIDOS_URL` para comunicación interna entre contenedores.
 
-```
-POST /api/pedidos
-       │
-       ├─► servicio-inventario: GET /api/inventario/producto/{id}
-       └─► servicio-inventario: POST /api/inventario/movimiento (SALIDA)
-```
+## Archivos principales
 
-Si el servicio de inventario no responde, el pedido se crea de igual forma (resiliencia básica).
+| Archivo | Descripción |
+| --- | --- |
+| `docker-compose.yml` | Define contenedores de MySQL, microservicios, gateway y volúmenes |
+| `database.sql` | Script de creación de bases, tablas y datos iniciales |
+| `*/pom.xml` | Configuración Maven de cada servicio |
+| `*/Dockerfile` | Imagen Docker de cada servicio |
+| `*/src/main/resources/application.properties` | Configuración local de cada microservicio |
+| `api-gateway/src/main/resources/application.yml` | Rutas del gateway |
+
+## link de REPOSITORIO: https://github.com/ArcangelGC/microservicio
